@@ -31,3 +31,9 @@ importtime.stderr.txt
 
 # local backups / broken edits
 *.broken_*
+
+# python build artifacts
+**/dist/
+**/build/
+**/*.egg-info/
+**/__pycache__/
