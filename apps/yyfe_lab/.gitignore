@@ -1,0 +1,41 @@
+﻿__pycache__/
+*.pyc
+.venv/
+logs/
+patches/
+
+# build artifacts
+dist/
+build/
+*.egg-info/
+
+# python caches
+__pycache__/
+*.pyc
+
+# setuptools egg-info
+**/*.egg-info/
+
+
+# python caches
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+# runtime artifacts
+output/
+# build artifacts
+dist/
+build/
+*.egg-info/
+**/*.egg-info/
+
+# runtime artifacts
+output/
+logs/
+# local temp
+.tmp/
+output/
+
+# local toolbox
+.tools/

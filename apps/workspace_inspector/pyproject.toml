@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "workspace-inspector"
+version = "0.2.4"
+description = "CLI tool to scan a workspace and summarize files and sizes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "yakuphanycl" }]
+keywords = ["cli", "automation", "files", "inspector"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+
+  "Operating System :: Microsoft :: Windows",
+]
+
+[project.scripts]
+workspace-inspector = "workspace_inspector.cli.main:main"
+
+

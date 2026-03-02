@@ -1,0 +1,25 @@
+name: ci
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run module smoke (no install)
+        shell: pwsh
+        run: |
+          python -m workspace_inspector --help
+          python -m workspace_inspector . --json - | python -c "import sys,json; json.load(sys.stdin); print('CI_JSON_OK')"

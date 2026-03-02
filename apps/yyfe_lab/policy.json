@@ -1,0 +1,20 @@
+{
+    "engine":  "YY-FE",
+    "version":  "0.1",
+    "max_files_per_patch":  2,
+    "max_patch_lines":  400,
+    "allowed_commands":  [
+                             "python -m pytest",
+                             "python -m unittest"
+                         ],
+    "forbidden_patterns":  [
+                               "rm -rf",
+                               "del /s",
+                               "rmdir /s",
+                               "git reset --hard",
+                               "git clean -fdx"
+                           ],
+    "allowlisted_scripts":  [
+                                "tools/golden.ps1"
+                            ]
+}
