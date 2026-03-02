@@ -28,3 +28,6 @@ runs/
 out.stdout.txt
 out.stderr.txt
 importtime.stderr.txt
+
+# local backups / broken edits
+*.broken_*
