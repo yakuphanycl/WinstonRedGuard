@@ -23,3 +23,8 @@ Thumbs.db
 
 # project-specific (muhtemel)
 runs/
+
+# temp outputs
+out.stdout.txt
+out.stderr.txt
+importtime.stderr.txt
