@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# venv
+.venv/
+venv/
+
+# build artifacts
+dist/
+build/
+
+# logs & temp
+*.log
+*.tmp
+*.bak*
+Thumbs.db
+.DS_Store
+
+# project-specific (muhtemel)
+runs/
