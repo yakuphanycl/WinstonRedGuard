@@ -108,8 +108,7 @@ function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
       }
     }
   }
-
-    WRG-RunDirect "build wheel" @($python, "-m", "build", "--wheel") @(0)
+    WRG-Run "build wheel" @($python, "-m", "build", "--wheel") @(0)
     $wheel = WRG-FindWheel $dist
 
     # Create temp venv
@@ -125,7 +124,7 @@ function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
 
     # Smoke import (package name = appName varsayımı)
     $code = "import importlib; importlib.import_module('$appName'); print('IMPORT_OK')"
-    WRG-RunDirect "smoke import" @($venvPy, "-c", $code) @(0)
+    WRG-Run "smoke import" @($venvPy, "-c", $code) @(0)
     # Optional: pytest if tests/ exists
 $testsDir = Join-Path $appRoot "tests"
 
@@ -138,7 +137,7 @@ if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $t
   # Sanity: import from installed wheel (wheel-only venv)
   $importCmd = "import importlib; importlib.import_module('$appName'); print('OK')"
   try {
-    WRG-RunDirect "import-check" @($venvPy, "-c", $importCmd) @(0)
+    WRG-Run "import-check" @($venvPy, "-c", $importCmd) @(0)
   } catch {
     WRG-Warn "Import-check failed for $appName; continuing to pytest anyway."
   }
@@ -147,7 +146,7 @@ if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $t
   WRG-PushDir $tmp
   try {
     $testsAbs = (Resolve-Path -LiteralPath $testsDir).Path
-    WRG-RunDirect "pytest" @($venvPy, "-m", "pytest", "-q", $testsAbs) @(0)
+    WRG-Run "pytest" @($venvPy, "-m", "pytest", "-q", $testsAbs) @(0)
   } finally {
     WRG-PopDir
   }
@@ -215,6 +214,8 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
+
 
 
 
