@@ -37,3 +37,7 @@ importtime.stderr.txt
 **/build/
 **/*.egg-info/
 **/__pycache__/
+**/layer2/examples/reports/
+**/runs/
+**/.venv/
+**/.pytest_cache/
