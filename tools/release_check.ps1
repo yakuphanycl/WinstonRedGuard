@@ -1,3 +1,10 @@
+param(
+  [string]$App = "",
+  [switch]$All,
+  [switch]$VerboseLog,
+  [switch]$Quiet
+)
+
   param([string]$Msg)
 
 # --- WRG: log controls ---
@@ -40,12 +47,6 @@ function WRG-Run {
   }
 }
 # --- /WRG: log controls ---
-param(
-  [string]$App = "",
-  [switch]$All,
-  [switch]$VerboseLog,
-  [switch]$Quiet
-)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
