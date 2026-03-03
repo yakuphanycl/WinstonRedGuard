@@ -1,7 +1,8 @@
+  param([string]$Msg)
+
 # --- WRG: log controls ---
 function WRG-Log {
-  param([string]$Msg)
-  if (-not $Quiet) { Write-Host $Msg }
+if (-not $Quiet) { Write-Host $Msg }
 }
 function WRG-LogV {
   param([string]$Msg)
@@ -212,6 +213,7 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
 
 
 
