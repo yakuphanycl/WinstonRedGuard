@@ -1,0 +1,130 @@
+﻿    if "--job" in argv:
+        j = argv.index("--job")
+        if j + 1 >= len(argv):
+            return _die("missing value for --job")
+        job_arg = argv[j + 1]
+        # remove --job and its value so it won't trip unknown-arg parsing later
+        argv = argv[:j] + argv[j + 2:]
+        # ensure argv[0] is the job path
+        if not argv:
+            argv = [job_arg]
+        else:
+            argv[0] = job_arg
+
+    job_path = Path(argv[0]).resolve()
+    run_id: Optional[str] = None
+
+    # simple arg parse
+    i = 1
+    while i < len(argv):
+        a = argv[i]
+        if a == "--run-id" and i + 1 < len(argv):
+            run_id = argv[i + 1]
+            i += 2
+            continue
+        return _die(f"unknown arg: {a}")
+
+    run_id = run_id or _new_run_id()
+
+    if not job_path.exists():
+        return _die(f"job not found: {job_path}")
+
+    try:
+        job = json.loads(job_path.read_text(encoding="utf-8-sig"))
+    except Exception as e:
+        return _die(f"invalid job json: {e}")
+
+    repo = _repo_root_from_this_file()
+    runs_dir = repo / "runs"
+    run_dir = runs_dir / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Prepare Layer-1 input job under run_dir (Layer-1 schema minimal)
+    # We assume Layer-1 reads a json job with "script" and "output.path"
+    script_text = str(job.get("script") or job.get("hook") or "TEST")
+    out_mp4 = run_dir / "video.mp4"
+
+    layer1_job = {
+        "script": script_text,
+        "output": {"path": str(out_mp4)},
+    }
+    layer1_job_path = run_dir / "layer1_job.json"
+    layer1_job_path.write_text(json.dumps(layer1_job, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # Call Layer-1 from repo root to avoid module path/cwd bugs
+    cmd = [
+        sys.executable,
+        "-m",
+        "shorts_engine.layer1.cli.render_job",
+        str(layer1_job_path),
+    ]
+
+    t0 = time.time()
+    print(f"[L2] repo={repo}")
+    print(f"[L2] run_id={run_id}")
+    print(f"[L2] run_dir={run_dir}")
+    print(f"[L2] cmd={' '.join(cmd)}")
+
+    p = subprocess.run(
+        cmd,
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    dt = time.time() - t0
+
+    # Save logs
+    (run_dir / "layer1.stdout.txt").write_text(p.stdout or "", encoding="utf-8")
+    (run_dir / "layer1.stderr.txt").write_text(p.stderr or "", encoding="utf-8")
+
+    print(f"[L2] layer1_rc={p.returncode} elapsed={dt:.2f}s")
+    if p.stdout:
+        print("[L2] --- layer1 stdout ---")
+        print(p.stdout.rstrip())
+    if p.stderr:
+        print("[L2] --- layer1 stderr ---", file=sys.stderr)
+        print(p.stderr.rstrip(), file=sys.stderr)
+
+    # Minimal meta (always write, even if layer1 fails)
+    meta: Dict[str, Any] = {
+        "run_id": run_id,
+        "repo": str(repo),
+        "cwd": str(repo),
+        "layer1_rc": p.returncode,
+        "requested_job": str(job_path),
+        "layer1_job": str(layer1_job_path),
+        "artifacts": {
+            "mp4_path": str(out_mp4) if out_mp4.exists() else None,
+            "base_mp4": str(out_mp4),
+        },
+    }
+    (run_dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # Optional: run TTS mux/qc if voice.mode == "tts"
+    rc_mux, meta = _maybe_tts_mux(job, repo, run_dir, out_mp4, script_text, meta)
+    if rc_mux != 0:
+        return rc_mux
+
+    # Verify artifacts
+    if p.returncode != 0:
+        return 1
+
+    mp4_path = meta.get("artifacts", {}).get("mp4_path")
+    if not mp4_path:
+        return _die("FAIL: no mp4_path in meta artifacts", 1)
+    if not Path(mp4_path).exists():
+        return _die(f"FAIL: mp4 missing: {mp4_path}", 1)
+
+    print("[L2] OK: mp4 produced")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+
+
+
+

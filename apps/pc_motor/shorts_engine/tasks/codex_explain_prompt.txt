@@ -1,0 +1,32 @@
+# CODEX TASK: Explain shorts_engine codebase (Layer-2 focus) + produce docs
+
+You are Codex running inside a local repo. Your job:
+1) Build a concise architecture map of this codebase.
+2) Identify the golden path CLI flow and the release/verify gates.
+3) Output:
+   - docs/ARCHITECTURE_LAYER2.md
+   - docs/FLOW_RENDER_JOB.md
+   - docs/RUN_STORE_CONTRACT.md
+   - docs/FILES_MAP.md
+   - docs/DIAGRAMS.md (Mermaid diagrams)
+4) Be honest about unknowns; cite exact file paths + line ranges for key claims.
+
+Constraints:
+- Documentation-only. No refactors.
+
+Read these files first:
+- layer2/cli/render_job.py
+- layer2/cli/render_status.py (if exists)
+- layer2/core/run_store.py
+- tools/release_check.ps1
+- tools/verify.ps1
+
+Also use:
+- docs/_generated/tree.txt
+- docs/_generated/grep_run_store.txt
+- docs/_generated/entrypoints.txt
+
+Deliverables requirements:
+- Golden path contract: inputs/outputs/exit codes, artifacts_ok semantics
+- Run store contract: required artifacts list, directory layout, failure modes
+- Mermaid diagrams: component + sequence diagram for render_job

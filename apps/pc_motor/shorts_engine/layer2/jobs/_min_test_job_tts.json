@@ -1,0 +1,12 @@
+﻿{
+  "version": "0.5",
+  "script": "Merhaba. Bu bir TTS test render. Eğer ses geliyorsa sistem tamamdır.",
+  "voice": {
+    "mode": "tts",
+    "engine": "edge",
+    "voice": "tr-TR-EmelNeural",
+    "rate": "-5%",
+    "volume": "+0%",
+    "keep_tts": true
+  }
+}

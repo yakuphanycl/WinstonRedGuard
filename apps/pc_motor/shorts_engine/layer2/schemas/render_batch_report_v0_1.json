@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shorts_engine.layer2.render_batch.report.v0.1",
+  "title": "Render Batch Report v0.1",
+  "type": "object",
+  "required": ["meta", "summary", "fail_by_type", "sample_failures", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["schema_version", "generated_at"],
+      "additionalProperties": true,
+      "properties": {
+        "schema_version": { "type": "string", "const": "0.1" },
+        "generated_at": { "type": "string" },
+        "component": { "type": "string" },
+        "batch_run_id": { "type": "string" },
+        "git": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "sha": { "type": "string" },
+            "tag": { "type": "string" },
+            "dirty": { "type": "boolean" }
+          }
+        },
+        "host": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "os": { "type": "string" },
+            "python": { "type": "string" }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total", "ok", "fail", "skipped"],
+      "additionalProperties": true,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "ok": { "type": "integer", "minimum": 0 },
+        "fail": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "duration_sec_total": { "type": "number", "minimum": 0 },
+        "duration_sec_p50": { "type": "number", "minimum": 0 },
+        "duration_sec_p95": { "type": "number", "minimum": 0 }
+      }
+    },
+    "fail_by_type": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "sample_failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "job_path", "message"],
+        "additionalProperties": true,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["validation_error", "io_error", "render_error", "timeout", "internal_error"]
+          },
+          "job_path": { "type": "string" },
+          "message": { "type": "string" },
+          "run_id": { "type": "string" },
+          "trace_path": { "type": "string" }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["job_path", "status", "duration_sec"],
+        "additionalProperties": true,
+        "properties": {
+          "job_id": { "type": "string" },
+          "job_path": { "type": "string" },
+          "status": { "type": "string", "enum": ["ok", "fail", "skipped"] },
+          "started_at": { "type": "string" },
+          "ended_at": { "type": "string" },
+          "duration_sec": { "type": "number", "minimum": 0 },
+          "output_path": { "type": "string" },
+          "run_id": { "type": "string" },
+          "trace_path": { "type": "string" },
+          "error": {
+            "type": "object",
+            "required": ["type", "message"],
+            "additionalProperties": true,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["validation_error", "io_error", "render_error", "timeout", "internal_error"]
+              },
+              "message": { "type": "string" },
+              "code": { "type": ["integer", "string"] },
+              "detail": { "type": ["string", "object", "array", "number", "boolean", "null"] }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "status": { "const": "fail" } } },
+            "then": { "required": ["error"] }
+          }
+        ]
+      }
+    }
+  }
+}

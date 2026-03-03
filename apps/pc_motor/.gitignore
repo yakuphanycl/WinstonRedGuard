@@ -1,0 +1,37 @@
+
+# --- local junk / WIP ---
+_junk/
+_calib/
+_growth_probe/
+_growth_test/
+_debug_*.py
+_run_last.txt
+*_out.txt
+*_last.txt
+*_log.txt
+*.patch
+*_WIP_*.patch
+*_wip.patch
+
+# --- backups ---
+*.bak_*
+*.bak
+*.broken_*
+
+# --- render outputs ---
+output/
+reports/
+tools/_tmp/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Local temp run artifacts
+tools/_tmp/
+output/
+# Tooling / scratch markers
+cope locked, golden path passing*
+tools/_tmp/
+runs/
