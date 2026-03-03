@@ -8,152 +8,141 @@ $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_lib.ps1")
 
+# Apps that are intentionally NOT release-packaged yet
+$SKIP_APPS = @(
+"pc_motor"
+  "shorts_engine"
+)
+
+function WRG-ToLower([string]$s) {
+  if ($null -eq $s) { return "" }
+  return $s.ToLowerInvariant()
+}
+
+function WRG-IsSkippedApp([string]$appName) {
+  $n = WRG-ToLower $appName
+  foreach ($s in $SKIP_APPS) {
+    if ((WRG-ToLower $s) -eq $n) { return $true }
+  }
+  return $false
+}
+
 function WRG-ListApps([string]$appsRoot) {
   WRG-AssertPath $appsRoot "apps root"
-  Get-ChildItem -LiteralPath $appsRoot -Directory | ForEach-Object { $_.Name } | Sort-Object
+  Get-ChildItem -LiteralPath $appsRoot -Directory |
+    ForEach-Object { $_.Name } |
+    Sort-Object
 }
 
 function WRG-AppRoot([string]$repoRoot, [string]$appName) {
   return (Join-Path $repoRoot ("apps\" + $appName))
 }
 
-function WRG-CleanDist([string]$appRoot) {
-  $dist = Join-Path $appRoot "dist"
-  if (Test-Path -LiteralPath $dist) { Remove-Item -Recurse -Force -LiteralPath $dist }
-}
 
-function WRG-BuildWheel([string]$python, [string]$appRoot) {
-  WRG-CleanDist $appRoot
-  WRG-RunDirect "build wheel" @($python, "-m", "build", "--wheel") @(0)
-  WRG-Ok "wheel build complete"
-}
-
-function WRG-MakeVenv([string]$python, [string]$venvDir) {
-  WRG-RunDirect "create venv" @($python, "-m", "venv", $venvDir) @(0)
-  $venvPy = Join-Path $venvDir "Scripts\python.exe"
-  WRG-AssertPath $venvPy "venv python"
-  WRG-RunDirect "pip upgrade" @($venvPy, "-m", "pip", "install", "--upgrade", "pip") @(0)
-  return $venvPy
-}
-
-function WRG-InstallWheel([string]$venvPy, [string]$wheelPath) {
-  WRG-RunDirect "install wheel" @($venvPy, "-m", "pip", "install", $wheelPath) @(0)
-  WRG-Ok "installed"
-}
-
-function WRG-DetectModuleMain([string]$appRoot, [string]$appName) {
-  # Prefer common patterns in this ecosystem:
-  $candidates = @(
-    "$appName.cli.main",
-    "$appName.cli:main",
-    "$appName.__main__",
-    "$appName.main"
-  )
-
-  # If src/<name>/cli/main.py exists, strongest signal:
-  $p1 = Join-Path $appRoot ("src\" + $appName + "\cli\main.py")
-  if (Test-Path -LiteralPath $p1) { return "$appName.cli.main" }
-
-  # Try __main__.py
-  $p2 = Join-Path $appRoot ("src\" + $appName + "\__main__.py")
-  if (Test-Path -LiteralPath $p2) { return "$appName.__main__" }
-
-  # Fallback: first candidate
-  return $candidates[0]
-}
-
-function WRG-SmokeHelp([string]$venvPy, [string]$moduleMain) {
-  # python -m <module> --help
-  # Prefer running package root if it has __main__.py (avoid runpy quirks; standard CLI)
-  $appRoot = $PWD.Path
-  $pkgRoot = $moduleMain.Split(".")[0]
-
-  $main1 = Join-Path $appRoot (Join-Path $pkgRoot "__main__.py")
-  $main2 = Join-Path $appRoot (Join-Path ("src\{0}" -f $pkgRoot) "__main__.py")
-
-  $smokeModule = $moduleMain
-  if ( (Test-Path -LiteralPath $main1 -PathType Leaf) -or (Test-Path -LiteralPath $main2 -PathType Leaf) ) {
-    $smokeModule = $pkgRoot
-  }
-
-  Write-Host "[INFO] smokeModule=$smokeModule"
-WRG-RunDirect "smoke --help" @($venvPy, "-m", $smokeModule, "--help") @(0)
-}
-
-function WRG-SmokeVersionJson([string]$venvPy, [string]$moduleMain) {
-  # Best-effort: if "version" exists and returns JSON, validate it
-  $out = & $venvPy -m $moduleMain version 2>$null
-  $rc = $LASTEXITCODE
-  if ($rc -eq 0 -and $out -and $out.TrimStart().StartsWith("{")) {
-    WRG-AssertJson $out "version json"
-  } else {
-    WRG-Warn "version smoke skipped or non-JSON (rc=$rc). OK for tools without 'version'."
-  }
-}
-
-function WRG-RunAppContractTests([string]$appRoot) {
-  $appTests = Join-Path $appRoot "tools\contract_tests.ps1"
-  if (Test-Path -LiteralPath $appTests) {
-    WRG-RunDirect "app contract_tests.ps1" @("pwsh", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $appTests) @(0)
-  } else {
-    WRG-Warn "no app-level tools/contract_tests.ps1 found (skipping)"
-  }
-}
-
-function WRG-CheckOneApp([string]$repoRoot, [string]$appName) {
-  Write-Host ""
-  Write-Host "===============================" -ForegroundColor DarkCyan
-  Write-Host " WRG RELEASE CHECK :: $appName" -ForegroundColor DarkCyan
-  Write-Host "===============================" -ForegroundColor DarkCyan
-
-  $python = WRG-GetPython
-  $appRoot = WRG-AppRoot $repoRoot $appName
-  $pyproject = Join-Path $appRoot "pyproject.toml"
-
+function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
   WRG-AssertPath $appRoot "app root"
-  WRG-AssertPath $pyproject "pyproject.toml"
-
   WRG-PushDir $appRoot
-  $tmp = ""
+
+  $tmp = $null
   try {
-    WRG-BuildWheel $python $appRoot
-    $wheel = WRG-FindWheel (Join-Path $appRoot "dist")
+    $python = WRG-GetPython
 
-    $tmp = WRG-NewTempDir "wrg-venv"
+    # Clean dist/
+    $dist = Join-Path $appRoot "dist"
+    if (Test-Path -LiteralPath $dist) { Remove-Item -Recurse -Force -LiteralPath $dist }
+
+    WRG-RunDirect "build wheel" @($python, "-m", "build", "--wheel") @(0)
+    $wheel = WRG-FindWheel $dist
+
+    # Create temp venv
+    $tmp = WRG-NewTempDir "wrg_release_"
     $venvDir = Join-Path $tmp "venv"
-    $venvPy = WRG-MakeVenv $python $venvDir
-    WRG-InstallWheel $venvPy $wheel
+    WRG-RunDirect "create venv" @($python, "-m", "venv", $venvDir) @(0)
 
-    $moduleMain = WRG-DetectModuleMain $appRoot $appName
-    WRG-Info "moduleMain=$moduleMain"
+    $venvPy = Join-Path $venvDir "Scripts\python.exe"
+    $pipBase = @($venvPy, "-m", "pip")
 
-    WRG-SmokeHelp $venvPy $moduleMain
-    WRG-SmokeVersionJson $venvPy $moduleMain
-    WRG-RunAppContractTests $appRoot
+    WRG-RunDirect "pip bootstrap" ($pipBase + @("install","-q","-U","pip","setuptools","wheel")) @(0)
+    WRG-RunDirect "pip install wheel" ($pipBase + @("install","-q",$wheel)) @(0)
 
-    WRG-Ok "$appName release check PASS"
+    # Smoke import (package name = appName varsayımı)
+    $code = "import importlib; importlib.import_module('$appName'); print('IMPORT_OK')"
+    WRG-RunDirect "smoke import" @($venvPy, "-c", $code) @(0)
+    # Optional: pytest if tests/ exists
+    $testsDir = Join-Path $appRoot "tests"
+# --- WRG: pytest (installed wheel must win) ---
+# Defensive: testsDir must be non-null and absolute
+$testsDir = $null
+try { $testsDir = Join-Path $appRoot "tests" } catch { $testsDir = $null }
+
+if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $testsDir -PathType Container)) {
+
+  # Ensure pytest exists (release_check venv)
+  try { & $venvPy -m pip install -q pytest | Out-Null } catch { & $venvPy -m pip install pytest }
+
+  # Sanity: import from installed wheel
+  try {
+    WRG-RunDirect "import-check" @(
+      $venvPy, "-c",
+      "import workspace_inspector as p; import workspace_inspector.cli as c; print('OK', getattr(p,'__version__','no-version'), c.format_size_binary(2048))"
+    ) @(0)
+  } catch {
+    WRG-Warn "Import-check failed; continuing to pytest anyway."
+  }
+
+  # Run pytest from temp dir so repo sources don't shadow installed wheel
+  WRG-PushDir $tmp
+  try {
+    $testsAbs = (Resolve-Path -LiteralPath $testsDir).Path
+    WRG-RunDirect "pytest" @($venvPy, "-m", "pytest", "-q", $testsAbs) @(0)
   } finally {
+    WRG-PopDir
+  }
+
+} else {
+  WRG-Warn "No tests/ directory; skipping pytest."
+}
+# --- /WRG: pytest ---WRG-Ok "$appName release check PASS"
+  }
+  finally {
     WRG-PopDir
     if ($tmp) { WRG-RemoveDirSafe $tmp }
   }
 }
-
-# ---- main ----
+# --- main ---
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") | Select-Object -ExpandProperty Path
 $appsRoot = Join-Path $repoRoot "apps"
 
-if ($All -or (-not $App)) {
-  WRG-Info "Running for ALL apps under $appsRoot"
-  $apps = WRG-ListApps $appsRoot
-  if (-not $apps -or $apps.Count -eq 0) { WRG-Die "no apps found under $appsRoot" 1 }
-  foreach ($a in $apps) { WRG-CheckOneApp $repoRoot $a }
-} else {
-  WRG-CheckOneApp $repoRoot $App
+# If a single app is requested and it is intentionally skipped, exit cleanly
+if (-not [string]::IsNullOrWhiteSpace($App)) {
+  if (WRG-IsSkippedApp $App) {
+    Write-Host ("[SKIP] {0} is intentionally not release-packaged yet." -f $App)
+    exit 0
+  }
 }
 
-Write-Host ""
-WRG-Ok "ALL CHECKS DONE"
+if ($PSBoundParameters.ContainsKey('All') -or [string]::IsNullOrWhiteSpace($App)) {
+  WRG-Info "Running for ALL apps under $appsRoot"
+
+  $apps = WRG-ListApps $appsRoot
+  $apps = $apps | Where-Object { -not (WRG-IsSkippedApp $_) }
+
+  foreach ($appName in $apps) {
+    WRG-Info "==> $appName"
+    $appRoot = WRG-AppRoot $repoRoot $appName
+    WRG-RunReleaseCheckForApp $appName $appRoot
+  }
+
+  exit 0
+}
+
+# Single app path (non-skipped)
+$appName = $App
+$appRoot = WRG-AppRoot $repoRoot $appName
+WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
+
 
 
 

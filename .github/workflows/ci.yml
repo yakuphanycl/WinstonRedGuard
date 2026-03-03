@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-tests:
+    name: Python Tests (yyfe_lab)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/yyfe_lab
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]" pytest-cov
+
+      - name: Ruff lint
+        run: ruff check src/
+
+      - name: Mypy type check
+        run: mypy src/
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=yyfe \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=70 \
+            -v
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: apps/yyfe_lab/coverage.xml
+
+  powershell-lint:
+    name: PowerShell PSScriptAnalyzer
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Analyze _lib.ps1
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path tools\_lib.ps1 -Severity Warning,Error
+          if ($results) {
+            $results | Format-Table -AutoSize
+            exit 1
+          }
+
+      - name: Analyze release_check.ps1
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path tools\release_check.ps1 -Severity Warning,Error
+          if ($results) {
+            $results | Format-Table -AutoSize
+            exit 1
+          }
