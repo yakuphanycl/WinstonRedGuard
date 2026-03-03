@@ -41,3 +41,4 @@ importtime.stderr.txt
 **/runs/
 **/.venv/
 **/.pytest_cache/
+**/dist._locked_*/
