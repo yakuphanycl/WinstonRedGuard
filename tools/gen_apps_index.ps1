@@ -53,6 +53,11 @@ $end
 
 $text = Get-Content $readme -Raw
 
+# --- WRG: marker guard ---
+if ($text -notmatch '<!--\s*WRG:APPS_START\s*-->' -or $text -notmatch '<!--\s*WRG:APPS_END\s*-->') {
+  throw "README.md is missing WRG markers: <!-- WRG:APPS_START --> / <!-- WRG:APPS_END -->"
+}
+
 if ($text -match [regex]::Escape($start)) {
 
   $pattern = "(?s)$([regex]::Escape($start)).*?$([regex]::Escape($end))"
@@ -74,4 +79,5 @@ if ($old -ne $text) {
 } else {
   Write-Host "README apps index already up-to-date."
 }
+
 
