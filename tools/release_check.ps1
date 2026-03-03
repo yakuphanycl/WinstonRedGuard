@@ -1,7 +1,50 @@
+# --- WRG: log controls ---
+function WRG-Log {
+  param([string]$Msg)
+  if (-not $Quiet) { Write-Host $Msg }
+}
+function WRG-LogV {
+  param([string]$Msg)
+  if ($VerboseLog) { Write-Host $Msg }
+}
+function WRG-LogErr {
+  param([string]$Msg)
+  Write-Host $Msg -ForegroundColor Red
+}
+# Run a command; hide stdout/stderr unless -VerboseLog
+function WRG-Run {
+  param(
+    [Parameter(Mandatory=$true)][string]$Title,
+    [Parameter(Mandatory=$true)][string[]]$Cmd,
+    [int[]]$OkExitCodes = @(0)
+  )
+  WRG-LogV ("[INFO] {0}" -f $Title)
+  WRG-LogV ("==> {0}" -f ($Cmd -join ' '))
+
+  if ($VerboseLog) {
+    & $Cmd[0] @($Cmd[1..($Cmd.Count-1)])
+    $rc = $LASTEXITCODE
+  } else {
+    $out = & $Cmd[0] @($Cmd[1..($Cmd.Count-1)]) 2>&1
+    $rc = $LASTEXITCODE
+  }
+
+  if ($OkExitCodes -notcontains $rc) {
+    WRG-LogErr ("[ERR] {0} (rc={1})" -f $Title, $rc)
+    if (-not $VerboseLog) {
+      # sadece fail olunca captured output'u bas
+      $out | ForEach-Object { Write-Host $_ }
+    }
+    exit $rc
+  }
+}
+# --- /WRG: log controls ---
+
 param(
   [string]$App = "",
   [switch]$All
-)
+  [switch]$VerboseLog,
+  [switch]$Quiet,)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -172,5 +215,6 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
 
 
