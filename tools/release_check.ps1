@@ -1,12 +1,21 @@
 param(
   [string]$App = "",
-  [switch]$All
+  [switch]$All,
+  [Alias('h')][switch]$Help
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_lib.ps1")
+
+if ($Help) {
+  Write-Host "Usage: release_check.ps1 [-App <name>] [-All] [-Help]"
+  Write-Host "  -App <name>  Run release check for a single app"
+  Write-Host "  -All         Run release check for all non-skipped apps"
+  Write-Host "  -Help, -h    Show this help message"
+  exit 0
+}
 
 # Apps that are intentionally NOT release-packaged yet
 $SKIP_APPS = @(
@@ -40,6 +49,9 @@ function WRG-AppRoot([string]$repoRoot, [string]$appName) {
 
 
 function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
+  if ([string]::IsNullOrWhiteSpace($appRoot)) {
+    WRG-Die "appRoot is null or empty for '$appName'" 1
+  }
   WRG-AssertPath $appRoot "app root"
   WRG-PushDir $appRoot
 
@@ -68,14 +80,10 @@ function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
     # Smoke import (package name = appName varsayımı)
     $code = "import importlib; importlib.import_module('$appName'); print('IMPORT_OK')"
     WRG-RunDirect "smoke import" @($venvPy, "-c", $code) @(0)
-    # Optional: pytest if tests/ exists
-    $testsDir = Join-Path $appRoot "tests"
-# --- WRG: pytest (installed wheel must win) ---
-# Defensive: testsDir must be non-null and absolute
-$testsDir = $null
-try { $testsDir = Join-Path $appRoot "tests" } catch { $testsDir = $null }
+    # --- WRG: pytest (installed wheel must win) ---
+    $testsDir = if (-not [string]::IsNullOrWhiteSpace($appRoot)) { Join-Path $appRoot "tests" } else { $null }
 
-if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $testsDir -PathType Container)) {
+    if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $testsDir -PathType Container)) {
 
   # Ensure pytest exists (release_check venv)
   try { & $venvPy -m pip install -q pytest | Out-Null } catch { & $venvPy -m pip install pytest }
@@ -99,10 +107,11 @@ if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $t
     WRG-PopDir
   }
 
-} else {
-  WRG-Warn "No tests/ directory; skipping pytest."
-}
-# --- /WRG: pytest ---WRG-Ok "$appName release check PASS"
+    } else {
+      WRG-Warn "No tests/ directory; skipping pytest."
+    }
+    # --- /WRG: pytest ---
+    WRG-Ok "$appName release check PASS"
   }
   finally {
     WRG-PopDir
