@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "WRG: release_check (ALL)",
+      "type": "process",
+      "command": "C:\\\\Program Files\\\\PowerShell\\\\7\\\\pwsh.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File",
+        "${workspaceFolder}\\tools\\release_check.ps1",
+        "-All"
+      ],
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "WRG: release_check (pick app)",
+      "type": "process",
+      "command": "C:\\\\Program Files\\\\PowerShell\\\\7\\\\pwsh.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-File",
+        "${workspaceFolder}\\tools\\release_check.ps1"
+      ],
+      "problemMatcher": [],
+      "group": "test"
+    }
+  ]
+}
+
+
