@@ -45,7 +45,9 @@ param(
   [switch]$All,
   [switch]$VerboseLog,
   [switch]$Quiet
-)Set-StrictMode -Version Latest
+)
+
+Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 . (Join-Path $PSScriptRoot "_lib.ps1")
@@ -213,6 +215,7 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
 
 
 
