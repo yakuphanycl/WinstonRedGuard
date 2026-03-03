@@ -1,0 +1,7 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\\\.venv\\\\Scripts\\\\python",
+  "python.terminal.activateEnvironment": true,
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "files.encoding": "utf8",
+  "files.eol": "\n"
+}
