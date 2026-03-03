@@ -120,6 +120,26 @@ if (-not [string]::IsNullOrWhiteSpace($App)) {
 if ($PSBoundParameters.ContainsKey('All') -or [string]::IsNullOrWhiteSpace($App)) {
   WRG-Info "Running for ALL apps under $appsRoot"
 
+# --- WRG: README apps index gate (contract) ---
+$gen = Join-Path $PSScriptRoot "gen_apps_index.ps1"
+if (Test-Path -LiteralPath $gen) {
+
+  Write-Host "[INFO] README apps index gate"
+  & pwsh -NoProfile -ExecutionPolicy Bypass -File $gen | Out-Host
+
+  # If README changed, fail the release check (contract drift)
+  & git diff --quiet -- "README.md"
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "[ERR] README.md apps index is out of date (or line endings/encoding drift). Run tools/gen_apps_index.ps1 and commit README.md."
+    exit 2
+  }
+
+} else {
+  Write-Host "[WARN] tools/gen_apps_index.ps1 not found; skipping README gate."
+}
+# --- /WRG: README apps index gate ---
+
+
   $apps = WRG-ListApps $appsRoot
   $apps = $apps | Where-Object { -not (WRG-IsSkippedApp $_) }
 
@@ -137,4 +157,5 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
 
