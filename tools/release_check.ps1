@@ -69,35 +69,20 @@ function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
     $code = "import importlib; importlib.import_module('$appName'); print('IMPORT_OK')"
     WRG-RunDirect "smoke import" @($venvPy, "-c", $code) @(0)
     # Optional: pytest if tests/ exists
-    $testsDir = Join-Path $appRoot "tests"
-# --- WRG: pytest (installed wheel must win) ---
-# Defensive: testsDir must be non-null and absolute
-$testsDir = $null
-try { $testsDir = Join-Path $appRoot "tests" } catch { $testsDir = $null }
+$testsDir = Join-Path $appRoot "tests"
 
+# --- WRG: pytest (installed wheel must win) ---
 if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $testsDir -PathType Container)) {
 
   # Ensure pytest exists (release_check venv)
   try { & $venvPy -m pip install -q pytest | Out-Null } catch { & $venvPy -m pip install pytest }
 
-  # Sanity: import from installed wheel
-  try {
-  # WRG: app-aware import-check (wheel-only venv)
-  $appName = if (Get-Variable -Name a -Scope 0 -ErrorAction SilentlyContinue) { $a } else { $App }
-  $appKey  = [string]$appName
-  $importCmd = switch ($appKey.ToLowerInvariant()) {
-    "workspace_inspector" { "import workspace_inspector as p; import workspace_inspector.cli as c; print('OK', getattr(p,'__version__','no-version'), c.format_size_binary(2048))" }
-    "yyfe_lab"            { "import yyfe, yyfe_lab; print('OK', getattr(yyfe_lab,'__version__','no-version'))" }
-    default               { "import importlib; importlib.import_module('$appKey'); print('OK')" }
-  }
-
+  # Sanity: import from installed wheel (wheel-only venv)
+  $importCmd = "import importlib; importlib.import_module('$appName'); print('OK')"
   try {
     WRG-RunDirect "import-check" @($venvPy, "-c", $importCmd) @(0)
   } catch {
-    WRG-Warn "Import-check failed for $appKey; continuing to pytest anyway."
-  }
-  } catch {
-    WRG-Warn "Import-check failed; continuing to pytest anyway."
+    WRG-Warn "Import-check failed for $appName; continuing to pytest anyway."
   }
 
   # Run pytest from temp dir so repo sources don't shadow installed wheel
@@ -112,7 +97,8 @@ if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $t
 } else {
   WRG-Warn "No tests/ directory; skipping pytest."
 }
-# --- /WRG: pytest ---WRG-Ok "$appName release check PASS"
+# --- /WRG: pytest ---
+WRG-Ok "$appName release check PASS"
   }
   finally {
     WRG-PopDir
@@ -151,11 +137,4 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
-
-
-
-
-
-
-
 
