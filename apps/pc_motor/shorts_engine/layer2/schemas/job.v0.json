@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "shorts_engine.layer2.job.v0",
+  "title": "Layer-2 Job (v0)",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["output", "video", "subtitles"],
+  "properties": {
+    "version": { "type": "string", "minLength": 1 },
+    "output": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "video": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["resolution", "fps", "duration_sec"],
+      "properties": {
+        "resolution": { "type": "string", "minLength": 3 },
+        "fps": { "type": "integer", "minimum": 1 },
+        "duration_sec": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "subtitles": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

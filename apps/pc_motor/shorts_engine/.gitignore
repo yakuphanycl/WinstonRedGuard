@@ -1,0 +1,13 @@
+# local artifacts
+output/
+runs/
+docs/_generated/
+*.bak_*
+*.tmp
+__pycache__/
+*.pyc
+
+# optional: editor / tooling
+.vscode/
+.idea/
+.DS_Store

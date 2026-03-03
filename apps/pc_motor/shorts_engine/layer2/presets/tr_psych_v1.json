@@ -1,0 +1,29 @@
+{
+  "schema_version": "0.1",
+  "name": "tr_psych_v1",
+  "description": "Baseline Turkish psych shorts preset with safe subtitle margins and balanced pacing.",
+  "video": {
+    "resolution": "1080x1920",
+    "fps": 30
+  },
+  "subtitles": {
+    "max_lines": 2,
+    "max_chars_per_line": 26,
+    "safe_margin_px": 96,
+    "line_break_mode": "greedy",
+    "font_size": 64,
+    "stroke_px": 6,
+    "shadow": true
+  },
+  "visual": {
+    "background": "gradient_noise",
+    "blur": 0,
+    "grain": 0.1
+  },
+  "voice": {
+    "mode": "none",
+    "lang": "tr-TR",
+    "rate": 1.0
+  }
+}
+

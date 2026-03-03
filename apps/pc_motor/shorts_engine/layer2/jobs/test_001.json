@@ -1,0 +1,31 @@
+{
+  "version": "0.5",
+  "visuals": {
+    "background": {
+      "type": "gradient"
+    }
+  },
+  "output": {
+    "path": "output\\bad\\blocked\\test.mp4"
+  },
+  "subtitles": {
+    "items": [
+      {
+        "text": "Merhaba. Bu bir test render. rr002840752"
+      },
+      {
+        "text": "Golden path çalışıyorsa, gate de geçmeli."
+      }
+    ]
+  },
+  "video": {
+    "resolution": "1080x1920",
+    "duration_sec": 8,
+    "fps": 30
+  },
+  "audio": {
+    "voice": "default",
+    "mode": "tts",
+    "text": "Merhaba. Bu bir test render."
+  }
+}

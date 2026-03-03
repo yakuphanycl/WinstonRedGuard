@@ -1,0 +1,24 @@
+{
+  "version": "0.5",
+  "output": {
+    "path": "output/test.mp4"
+  },
+  "video": {
+    "duration_sec": 8,
+    "resolution": "1080x1920",
+    "fps": 30
+  },
+  "subtitles": {
+    "items": [
+      {
+        "text": "Merhaba. Bu bir test render."
+      },
+      {
+        "text": "Eğer bu çalışırsa, pipeline yaşıyor demektir."
+      }
+    ]
+  },
+  "hook": "Bugün beynin sana küçük bir oyun oynuyor.",
+  "pattern_break": "Dur. Şu cümleyi tekrar oku.",
+  "loop_ending": "Ve işin komiği: bunu yarın yine yapacaksın."
+}

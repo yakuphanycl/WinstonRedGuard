@@ -1,0 +1,29 @@
+{
+  "schema_version": "0.1",
+  "name": "tr_psych_v2_fast",
+  "description": "Faster pacing variant for short-form hooks and punchy line cadence.",
+  "video": {
+    "resolution": "1080x1920",
+    "fps": 30
+  },
+  "subtitles": {
+    "max_lines": 2,
+    "max_chars_per_line": 22,
+    "safe_margin_px": 96,
+    "line_break_mode": "greedy",
+    "font_size": 68,
+    "stroke_px": 6,
+    "shadow": true
+  },
+  "visual": {
+    "background": "gradient_noise",
+    "blur": 0,
+    "grain": 0.15
+  },
+  "voice": {
+    "mode": "none",
+    "lang": "tr-TR",
+    "rate": 1.05
+  }
+}
+
