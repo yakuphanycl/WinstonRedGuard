@@ -82,10 +82,20 @@ if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $t
 
   # Sanity: import from installed wheel
   try {
-    WRG-RunDirect "import-check" @(
-      $venvPy, "-c",
-      "import workspace_inspector as p; import workspace_inspector.cli as c; print('OK', getattr(p,'__version__','no-version'), c.format_size_binary(2048))"
-    ) @(0)
+  # WRG: app-aware import-check (wheel-only venv)
+  $appName = if (Get-Variable -Name a -Scope 0 -ErrorAction SilentlyContinue) { $a } else { $App }
+  $appKey  = [string]$appName
+  $importCmd = switch ($appKey.ToLowerInvariant()) {
+    "workspace_inspector" { "import workspace_inspector as p; import workspace_inspector.cli as c; print('OK', getattr(p,'__version__','no-version'), c.format_size_binary(2048))" }
+    "yyfe_lab"            { "import yyfe, yyfe_lab; print('OK', getattr(yyfe_lab,'__version__','no-version'))" }
+    default               { "import importlib; importlib.import_module('$appKey'); print('OK')" }
+  }
+
+  try {
+    WRG-RunDirect "import-check" @($venvPy, "-c", $importCmd) @(0)
+  } catch {
+    WRG-Warn "Import-check failed for $appKey; continuing to pytest anyway."
+  }
   } catch {
     WRG-Warn "Import-check failed; continuing to pytest anyway."
   }
@@ -141,6 +151,7 @@ $appName = $App
 $appRoot = WRG-AppRoot $repoRoot $appName
 WRG-RunReleaseCheckForApp $appName $appRoot
 exit 0
+
 
 
 
