@@ -65,6 +65,13 @@ if ($text -match [regex]::Escape($start)) {
   $text += "`n## Apps`n`n$start`n$block`n$end`n"
 }
 
-$text | Set-Content $readme -Encoding UTF8
+# --- WRG: idempotent README write ---
+$old = Get-Content -LiteralPath $readme -Raw -Encoding UTF8
 
-Write-Host "README apps index updated."
+if ($old -ne $text) {
+  $text | Set-Content -LiteralPath $readme -Encoding UTF8
+  Write-Host "README apps index updated."
+} else {
+  Write-Host "README apps index already up-to-date."
+}
+
