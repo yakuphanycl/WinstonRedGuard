@@ -49,7 +49,22 @@ function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
 
     # Clean dist/
     $dist = Join-Path $appRoot "dist"
-    if (Test-Path -LiteralPath $dist) { Remove-Item -Recurse -Force -LiteralPath $dist }
+  if (Test-Path -LiteralPath $dist) {
+    try {
+      Remove-Item -Recurse -Force -LiteralPath $dist -ErrorAction Stop
+    } catch {
+      $q = "$dist._locked_$(Get-Date -Format yyyyMMdd_HHmmss)"
+      try {
+        Rename-Item -LiteralPath $dist -NewName (Split-Path $q -Leaf) -ErrorAction Stop
+        Write-Host "[WARN] dist was locked; renamed to $(Split-Path $q -Leaf)"
+      } catch {
+        Write-Host "[WARN] dist locked and rename failed: $($_.Exception.Message)"
+      }
+      if (-not (Test-Path -LiteralPath $dist)) {
+        New-Item -ItemType Directory -Path $dist | Out-Null
+      }
+    }
+  }
 
     WRG-RunDirect "build wheel" @($python, "-m", "build", "--wheel") @(0)
     $wheel = WRG-FindWheel $dist
