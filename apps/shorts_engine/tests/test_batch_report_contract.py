@@ -3,7 +3,9 @@ from pathlib import Path
 
 
 def test_batch_report_contract_shape():
-    p = Path("layer2/examples/reports/batch_report_golden.v0.1.json")
+    here = Path(__file__).resolve().parent
+    repo = here.parent  # tests/ -> repo root
+    p = repo / "layer2" / "examples" / "reports" / "batch_report_golden.v0.1.json"
     data = json.loads(p.read_text(encoding="utf-8"))
 
     for k in ["meta", "summary", "fail_by_type", "sample_failures", "items"]:
@@ -29,4 +31,3 @@ def test_batch_report_contract_shape():
                 "internal_error",
             )
             assert isinstance(err.get("message"), str) and err["message"].strip()
-

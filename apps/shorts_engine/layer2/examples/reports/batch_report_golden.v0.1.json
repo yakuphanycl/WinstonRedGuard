@@ -1,0 +1,44 @@
+{
+  "fail_by_type": {
+    "core": 0,
+    "io": 0,
+    "unknown": 0,
+    "validation": 0
+  },
+  "items": [
+    {
+      "cached": true,
+      "error_type": "none",
+      "job_path": "layer2\\examples\\min_job.json",
+      "out_path": "output\\test.mp4",
+      "result_rc": 0,
+      "run_id": "14cc95ee4e69",
+      "status": "ok",
+      "duration_sec": 0
+    }
+  ],
+  "meta": {
+    "args": [
+      "--jobs-dir",
+      "layer2\\examples",
+      "--glob",
+      "*.json",
+      "--max",
+      "1",
+      "--json-out",
+      "output\\batch_report_ok.json"
+    ],
+    "cwd": "C:\\dev\\pc_motor\\shorts_engine",
+    "timestamp": "2026-02-22T00:50:24+03:00",
+    "tool": "render_batch",
+    "version": "33f1d67"
+  },
+  "summary": {
+    "cached": 1,
+    "fail": 0,
+    "ok": 1,
+    "total": 1,
+    "skipped": 0
+  },
+  "sample_failures": []
+}

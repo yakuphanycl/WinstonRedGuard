@@ -38,6 +38,10 @@ importtime.stderr.txt
 **/*.egg-info/
 **/__pycache__/
 **/layer2/examples/reports/
+# keep reports ignored, but track the golden contract
+!apps/shorts_engine/layer2/examples/
+!apps/shorts_engine/layer2/examples/reports/
+!apps/shorts_engine/layer2/examples/reports/batch_report_golden.v0.1.json
 **/runs/
 **/.venv/
 **/.pytest_cache/
