@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shorts_engine"
+version = "0.0.0"
+description = "WinstonRedGuard - shorts engine"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "WinstonRedGuard" }]
+dependencies = []
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["tests*", "docs*", "runs*", "dist*", "build*", ".venv*"]
