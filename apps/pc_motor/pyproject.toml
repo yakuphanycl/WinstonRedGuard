@@ -8,7 +8,7 @@ version = "0.0.0"
 description = "WinstonRedGuard monorepo app: pc_motor"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 
 [tool.setuptools]
 include-package-data = true
