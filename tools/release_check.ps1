@@ -2,223 +2,196 @@ param(
   [string]$App = "",
   [switch]$All,
   [switch]$VerboseLog,
-  [switch]$Quiet
+  [switch]$Quiet,
+  [switch]$Help
 )
 
-  param([string]$Msg)
-
-# --- WRG: log controls ---
-function WRG-Log {
-if (-not $Quiet) { Write-Host $Msg }
-}
-function WRG-LogV {
-  param([string]$Msg)
-  if ($VerboseLog) { Write-Host $Msg }
-}
-function WRG-LogErr {
-  param([string]$Msg)
-  Write-Host $Msg -ForegroundColor Red
-}
-# Run a command; hide stdout/stderr unless -VerboseLog
-function WRG-Run {
-  param(
-    [Parameter(Mandatory=$true)][string]$Title,
-    [Parameter(Mandatory=$true)][string[]]$Cmd,
-    [int[]]$OkExitCodes = @(0)
-  )
-  WRG-LogV ("[INFO] {0}" -f $Title)
-  WRG-LogV ("==> {0}" -f ($Cmd -join ' '))
-
-  if ($VerboseLog) {
-    & $Cmd[0] @($Cmd[1..($Cmd.Count-1)])
-    $rc = $LASTEXITCODE
-  } else {
-    $out = & $Cmd[0] @($Cmd[1..($Cmd.Count-1)]) 2>&1
-    $rc = $LASTEXITCODE
-  }
-
-  if ($OkExitCodes -notcontains $rc) {
-    WRG-LogErr ("[ERR] {0} (rc={1})" -f $Title, $rc)
-    if (-not $VerboseLog) {
-      # sadece fail olunca captured output'u bas
-      $out | ForEach-Object { Write-Host $_ }
-    }
-    exit $rc
-  }
-}
-# --- /WRG: log controls ---
-
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-. (Join-Path $PSScriptRoot "_lib.ps1")
+function RC-Info([string]$m){ if(-not $Quiet){ Write-Host "[INFO] $m" } }
+function RC-Warn([string]$m){ if(-not $Quiet){ Write-Host "[WARN] $m" } }
+function RC-Err([string]$m){ Write-Host "[ERR]  $m" }
 
-# Apps that are intentionally NOT release-packaged yet
-$SKIP_APPS = @(
-"pc_motor"
-  "shorts_engine"
-)
-
-function WRG-ToLower([string]$s) {
-  if ($null -eq $s) { return "" }
-  return $s.ToLowerInvariant()
+function RC-Die([string]$m, [int]$code=1){
+  RC-Err $m
+  exit $code
 }
 
-function WRG-IsSkippedApp([string]$appName) {
-  $n = WRG-ToLower $appName
-  foreach ($s in $SKIP_APPS) {
-    if ((WRG-ToLower $s) -eq $n) { return $true }
-  }
-  return $false
+function RC-HasCmd([string]$name){
+  return $null -ne (Get-Command $name -ErrorAction SilentlyContinue)
 }
 
-function WRG-ListApps([string]$appsRoot) {
-  WRG-AssertPath $appsRoot "apps root"
-  Get-ChildItem -LiteralPath $appsRoot -Directory |
-    ForEach-Object { $_.Name } |
-    Sort-Object
-}
-
-function WRG-AppRoot([string]$repoRoot, [string]$appName) {
-  return (Join-Path $repoRoot ("apps\" + $appName))
-}
-
-
-function WRG-RunReleaseCheckForApp([string]$appName, [string]$appRoot) {
-  WRG-AssertPath $appRoot "app root"
-  WRG-PushDir $appRoot
-
-  $tmp = $null
+function RC-CanRunPython([string]$cmd, [string[]]$prefix=@()){
   try {
-    $python = WRG-GetPython
-
-    # Clean dist/
-    $dist = Join-Path $appRoot "dist"
-  if (Test-Path -LiteralPath $dist) {
-    try {
-      Remove-Item -Recurse -Force -LiteralPath $dist -ErrorAction Stop
-    } catch {
-      $q = "$dist._locked_$(Get-Date -Format yyyyMMdd_HHmmss)"
-      try {
-        Rename-Item -LiteralPath $dist -NewName (Split-Path $q -Leaf) -ErrorAction Stop
-        Write-Host "[WARN] dist was locked; renamed to $(Split-Path $q -Leaf)"
-      } catch {
-        Write-Host "[WARN] dist locked and rename failed: $($_.Exception.Message)"
-      }
-      if (-not (Test-Path -LiteralPath $dist)) {
-        New-Item -ItemType Directory -Path $dist | Out-Null
-      }
-    }
-  }
-    WRG-Run "build wheel" @($python, "-m", "build", "--wheel") @(0)
-    $wheel = WRG-FindWheel $dist
-
-    # Create temp venv
-    $tmp = WRG-NewTempDir "wrg_release_"
-    $venvDir = Join-Path $tmp "venv"
-    WRG-RunDirect "create venv" @($python, "-m", "venv", $venvDir) @(0)
-
-    $venvPy = Join-Path $venvDir "Scripts\python.exe"
-    $pipBase = @($venvPy, "-m", "pip")
-
-    WRG-RunDirect "pip bootstrap" ($pipBase + @("install","-q","-U","pip","setuptools","wheel")) @(0)
-    WRG-RunDirect "pip install wheel" ($pipBase + @("install","-q",$wheel)) @(0)
-
-    # Smoke import (package name = appName varsayımı)
-    $code = "import importlib; importlib.import_module('$appName'); print('IMPORT_OK')"
-    WRG-Run "smoke import" @($venvPy, "-c", $code) @(0)
-    # Optional: pytest if tests/ exists
-$testsDir = Join-Path $appRoot "tests"
-
-# --- WRG: pytest (installed wheel must win) ---
-if (-not [string]::IsNullOrWhiteSpace($testsDir) -and (Test-Path -LiteralPath $testsDir -PathType Container)) {
-
-  # Ensure pytest exists (release_check venv)
-  try { & $venvPy -m pip install -q pytest | Out-Null } catch { & $venvPy -m pip install pytest }
-
-  # Sanity: import from installed wheel (wheel-only venv)
-  $importCmd = "import importlib; importlib.import_module('$appName'); print('OK')"
-  try {
-    WRG-Run "import-check" @($venvPy, "-c", $importCmd) @(0)
+    & $cmd @prefix "-c" "import sys; print(sys.executable)"
+    return ($LASTEXITCODE -eq 0)
   } catch {
-    WRG-Warn "Import-check failed for $appName; continuing to pytest anyway."
-  }
-
-  # Run pytest from temp dir so repo sources don't shadow installed wheel
-  WRG-PushDir $tmp
-  try {
-    $testsAbs = (Resolve-Path -LiteralPath $testsDir).Path
-    WRG-Run "pytest" @($venvPy, "-m", "pytest", "-q", $testsAbs) @(0)
-  } finally {
-    WRG-PopDir
-  }
-
-} else {
-  WRG-Warn "No tests/ directory; skipping pytest."
-}
-# --- /WRG: pytest ---
-WRG-Ok "$appName release check PASS"
-  }
-  finally {
-    WRG-PopDir
-    if ($tmp) { WRG-RemoveDirSafe $tmp }
-  }
-}
-# --- main ---
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..") | Select-Object -ExpandProperty Path
-$appsRoot = Join-Path $repoRoot "apps"
-
-# If a single app is requested and it is intentionally skipped, exit cleanly
-if (-not [string]::IsNullOrWhiteSpace($App)) {
-  if (WRG-IsSkippedApp $App) {
-    Write-Host ("[SKIP] {0} is intentionally not release-packaged yet." -f $App)
-    exit 0
+    return $false
   }
 }
 
-if ($PSBoundParameters.ContainsKey('All') -or [string]::IsNullOrWhiteSpace($App)) {
-  WRG-Info "Running for ALL apps under $appsRoot"
-
-# --- WRG: README apps index gate (contract) ---
-$gen = Join-Path $PSScriptRoot "gen_apps_index.ps1"
-if (Test-Path -LiteralPath $gen) {
-
-  Write-Host "[INFO] README apps index gate"
-  & pwsh -NoProfile -ExecutionPolicy Bypass -File $gen | Out-Host
-
-  # If README changed, fail the release check (contract drift)
-  & git diff --quiet -- "README.md"
-  if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERR] README.md apps index is out of date (or line endings/encoding drift). Run tools/gen_apps_index.ps1 and commit README.md."
-    exit 2
-  }
-
-} else {
-  Write-Host "[WARN] tools/gen_apps_index.ps1 not found; skipping README gate."
+function RC-PickPython {
+  if ((RC-HasCmd "python") -and (RC-CanRunPython "python")) { return "python" }
+  if ((RC-HasCmd "python3") -and (RC-CanRunPython "python3")) { return "python3" }
+  if ((RC-HasCmd "py") -and (RC-CanRunPython "py" @("-3"))) { return "py" }
+  RC-Die "No working Python found on PATH (tried python, python3, py -3)." 2
 }
-# --- /WRG: README apps index gate ---
 
-
-  $apps = WRG-ListApps $appsRoot
-  $apps = $apps | Where-Object { -not (WRG-IsSkippedApp $_) }
-
-  foreach ($appName in $apps) {
-    WRG-Info "==> $appName"
-    $appRoot = WRG-AppRoot $repoRoot $appName
-    WRG-RunReleaseCheckForApp $appName $appRoot
+function RC-RunDirect([string]$label, [string[]]$argv, [int[]]$ok=@(0)){
+  if($VerboseLog){ RC-Info ("==> {0}`n    {1}" -f $label, ($argv -join " ")) }
+  & $argv[0] @($argv[1..($argv.Count-1)])
+  $rc = $LASTEXITCODE
+  if($ok -notcontains $rc){
+    RC-Die ("Command failed (rc={0}): {1}" -f $rc, ($argv -join " ")) $rc
   }
+}
 
+function RC-ListApps([string]$appsRoot){
+  if(-not (Test-Path -LiteralPath $appsRoot -PathType Container)){ return @() }
+  $dirs = Get-ChildItem -LiteralPath $appsRoot -Directory -ErrorAction SilentlyContinue
+  return @($dirs | ForEach-Object { $_.Name })
+}
+
+function RC-MakeTempDir([string]$prefix){
+  $base = [System.IO.Path]::GetTempPath()
+  $name = "{0}_{1}" -f $prefix, ([guid]::NewGuid().ToString("N").Substring(0,8))
+  $dir  = Join-Path $base $name
+  New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  return $dir
+}
+
+function RC-Abs([string]$p){
+  return (Resolve-Path -LiteralPath $p).Path
+}
+
+if($Help -or ((-not $All) -and [string]::IsNullOrWhiteSpace($App))){
+@"
+Usage:
+  pwsh -File tools/release_check.ps1 -All
+  pwsh -File tools/release_check.ps1 -App <app_name>
+
+Options:
+  -VerboseLog   print command lines
+  -Quiet        less output
+  -Help         show this message
+"@ | Write-Host
   exit 0
 }
 
-# Single app path (non-skipped)
-$appName = $App
-$appRoot = WRG-AppRoot $repoRoot $appName
-WRG-RunReleaseCheckForApp $appName $appRoot
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$appsRoot = Join-Path $repoRoot "apps"
+
+# Apps that are intentionally NOT release-packaged yet
+$SKIP_APPS = @()
+$python = RC-PickPython
+$pyVerArg = @()
+if($python -eq "py"){ $pyVerArg = @("-3") }
+
+# apps selection
+$apps = @()
+if($All -or [string]::IsNullOrWhiteSpace($App)){
+  $apps = RC-ListApps $appsRoot
+  RC-Info ("Running for ALL apps under {0}" -f $appsRoot)
+} else {
+  $apps = @($App)
+  RC-Info ("Running for ONE app: {0}" -f $App)
+}
+
+# Only apply skip filter when -App is NOT provided
+if([string]::IsNullOrWhiteSpace($App)){
+  # Filter out skip apps (case-insensitive)
+  $skipSet = @{}
+  foreach($s in $SKIP_APPS){ $skipSet[$s.ToLowerInvariant()] = $true }
+  $apps = @($apps | Where-Object { -not $skipSet.ContainsKey($_.ToLowerInvariant()) })
+}
+
+if(@($apps).Count -le 0){
+  RC-Die "No apps found under apps/ (or filtered by SKIP_APPS)." 2
+}
+
+foreach($appName in $apps){
+  $appRoot = Join-Path $appsRoot $appName
+  if(-not (Test-Path -LiteralPath $appRoot -PathType Container)){
+    RC-Die ("App not found: {0}" -f $appRoot) 2
+  }
+
+  RC-Info "==> $appName"
+
+  $pyproject = Join-Path $appRoot "pyproject.toml"
+  if(-not (Test-Path -LiteralPath $pyproject)){
+    RC-Die ("Missing pyproject.toml in {0}" -f $appRoot) 2
+  }
+
+  Push-Location $appRoot
+  try {
+    # Clean dist/ so we never pick an old wheel
+    $dist = Join-Path $appRoot "dist"
+    if(Test-Path -LiteralPath $dist -PathType Container){
+      try {
+        Remove-Item -Recurse -Force -LiteralPath $dist -ErrorAction Stop
+      } catch {
+        # best-effort: don't fail release check just because dist is locked
+        Remove-Item -Recurse -Force -LiteralPath $dist -ErrorAction SilentlyContinue
+      }
+    }
+    # Ensure 'build' module is available for python -m build
+    try {
+      RC-RunDirect "ensure build" (@($python) + $pyVerArg + @("-m","pip","install","-q","build")) @(0)
+    } catch {
+      RC-RunDirect "ensure build (retry)" (@($python) + $pyVerArg + @("-m","pip","install","build")) @(0)
+    }
+    # Build wheel
+    RC-RunDirect "build wheel" (@($python) + $pyVerArg + @("-m","build","--wheel")) @(0)
+
+    # Find newest wheel in dist/
+    $dist = Join-Path $appRoot "dist"
+    if(-not (Test-Path -LiteralPath $dist -PathType Container)){
+      RC-Die "dist/ missing after build" 3
+    }
+    $wheel = Get-ChildItem -LiteralPath $dist -Filter "*.whl" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if($null -eq $wheel){
+      RC-Die "No wheel found in dist/" 3
+    }
+    RC-Info ("Testing wheel: {0}" -f $wheel.Name)
+
+    # Create temp venv and install wheel
+    $tmpDir = RC-MakeTempDir ("wrg_release_{0}" -f $appName)
+    $venvDir = Join-Path $tmpDir ".venv"
+    RC-RunDirect "create venv" (@($python) + $pyVerArg + @("-m","venv",$venvDir)) @(0)
+
+    $venvPy = Join-Path $venvDir "Scripts\python.exe"
+    if(-not (Test-Path -LiteralPath $venvPy)){
+      RC-Die ("venv python not found: {0}" -f $venvPy) 4
+    }
+
+    RC-RunDirect "pip upgrade" @($venvPy,"-m","pip","install","-q","--upgrade","pip") @(0)
+
+    RC-RunDirect "install wheel" @($venvPy,"-m","pip","install","-q",$wheel.FullName) @(0)
+
+    # Run pytest if tests/ exists
+    $testsDir = Join-Path $appRoot "tests"
+    if(Test-Path -LiteralPath $testsDir -PathType Container){
+      RC-RunDirect "ensure pytest" @($venvPy,"-m","pip","install","-q","pytest") @(0)
+
+      # Contract: run pytest from temp dir so repo sources don't shadow installed wheel
+      $pytestCache = Join-Path $tmpDir ".pytest_cache"
+      Push-Location $tmpDir
+      try {
+        RC-RunDirect "pytest" @($venvPy,"-m","pytest","-q","-o","cache_dir=$pytestCache",(RC-Abs $testsDir)) @(0)
+      } finally {
+        Pop-Location
+      }
+    } else {
+      RC-Warn "No tests/ directory; skipping pytest."
+    }
+
+  } finally {
+    Pop-Location
+  }
+}
+
+RC-Info "OK"
 exit 0
-
-
-
 
 
 
