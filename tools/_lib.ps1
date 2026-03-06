@@ -41,7 +41,7 @@ function WRG-GetPythonArgv {
 
   if (Get-Command py -ErrorAction SilentlyContinue) {
     try {
-      & py -3 -c "import sys; print(sys.executable)" 1>$null 2>$null
+& py -c "import sys; print(sys.executable)" 1>$null 2>$null
       if ($LASTEXITCODE -eq 0) { return @("py","-3") }
     } catch {}
   }
@@ -108,7 +108,7 @@ function WRG-RunDirect {
     if (-not $Quiet) { WRG-Info $Label }
   }
 
-  # Compat: FilePath may include inline args ("py -3"). Split if the exe exists.
+  # Compat: FilePath may include inline args ("py"). Split if the exe exists.
   if ($FilePath -match '\s') {
     $parts = $FilePath -split '\s+'
     if ($parts.Count -ge 2) {
@@ -192,7 +192,7 @@ function WRG-FindWheel {
         throw "[ERR] no wheel found under: $DistDir"
     }
 
-    return $wheel.FullName
+    return (($wheel -replace '^\s*py\s+-3\s*$', 'py')).FullName
 }
 
 # --- WRG compat helpers (for release_check.ps1) ---
@@ -242,7 +242,7 @@ function WRG-RemoveDirSafe {
     # fallback: clear attributes then retry
     try {
       Get-ChildItem -LiteralPath $Path -Recurse -Force -ErrorAction SilentlyContinue |
-        ForEach-Object { try { $_.Attributes = 'Normal' } catch {} }
+        ForEach-Object { try { $_.Attributes = "Normal" } catch {} }
       Remove-Item -LiteralPath $Path -Recurse -Force -ErrorAction Stop
       return
     } catch {
@@ -252,6 +252,9 @@ function WRG-RemoveDirSafe {
     }
   }
 }
+
+
+
 
 
 
