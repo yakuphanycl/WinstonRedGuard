@@ -174,6 +174,25 @@ def test_docs_worker_not_found_still_reported_for_real_identifier(temp_repo_root
     assert any(f["code"] == "DOCS_WORKER_NOT_FOUND" for f in row["findings"])
 
 
+def test_ignores_local_worktree_docs_as_governance_source(temp_repo_root: Path) -> None:
+    app = _create_valid_app(temp_repo_root, "real_worker")
+    local_docs = temp_repo_root / ".claude" / "worktrees" / "local-only"
+    docs_text = """# Docs
+
+| System | Location | Purpose |
+|---|---|---|
+| `real_worker` | apps/real_worker | role |
+| `ghost_worker` | apps/ghost_worker | role |
+"""
+    _write(local_docs / "company_map.md", docs_text)
+    _write(local_docs / "AGENT_CONTEXT.md", docs_text)
+    _write_registry(temp_repo_root, [_base_entry("real_worker", app)])
+
+    report = run_check(temp_repo_root)
+    listed_apps = {row["app"] for row in report["checks"]}
+    assert "ghost_worker" not in listed_apps
+
+
 def test_flat_python_layout_with_project_scripts_passes_structure_checks(temp_repo_root: Path) -> None:
     app = temp_repo_root / "apps" / "workspace_inspector"
     _write(app / "README.md", "# workspace_inspector\nops worker --json-out\n")

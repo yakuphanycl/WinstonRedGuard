@@ -51,15 +51,6 @@ def _find_doc_pair(repo_root: Path) -> tuple[Path | None, Path | None]:
     if direct_company.exists() and direct_agent.exists():
         return direct_company, direct_agent
 
-    worktrees_root = repo_root / ".claude" / "worktrees"
-    if worktrees_root.exists():
-        worktrees = sorted(worktrees_root.glob("*"))
-        for worktree in worktrees:
-            company = worktree / "company_map.md"
-            agent = worktree / "AGENT_CONTEXT.md"
-            if company.exists() and agent.exists():
-                return company, agent
-
     return None, None
 
 
