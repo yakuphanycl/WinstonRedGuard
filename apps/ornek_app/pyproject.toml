@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ornek_app"
+version = "0.1.0"
+description = "ornek_app CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+ornek_app = "ornek_app.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+

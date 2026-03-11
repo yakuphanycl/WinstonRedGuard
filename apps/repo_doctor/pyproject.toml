@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo_doctor"
+version = "0.1.0"
+description = "Contract-first structural health scanner for monorepo apps"
+requires-python = ">=3.10"
+
+[project.scripts]
+repo_doctor = "repo_doctor.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "pytest",
+    "name": "pytest",
+    "category": "testing",
+    "tags": ["python", "tests", "qa"],
+    "summary": "Python test runner and testing framework"
+  },
+  {
+    "id": "ruff",
+    "name": "ruff",
+    "category": "linting",
+    "tags": ["python", "lint", "format"],
+    "summary": "Fast Python linter and formatter"
+  }
+]

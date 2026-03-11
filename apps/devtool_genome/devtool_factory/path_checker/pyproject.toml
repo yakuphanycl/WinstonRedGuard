@@ -1,0 +1,8 @@
+[project]
+name = "path_checker"
+version = "0.1.0"
+description = "path_checker CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+path_checker = "path_checker.cli:main"

@@ -1,0 +1,8 @@
+[project]
+name = "word_counter"
+version = "0.1.0"
+description = "word_counter CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+word_counter = "word_counter.cli:main"

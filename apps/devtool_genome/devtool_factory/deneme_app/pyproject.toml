@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "deneme_app"
+version = "0.1.0"
+description = "deneme_app CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+deneme_app = "deneme_app.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+

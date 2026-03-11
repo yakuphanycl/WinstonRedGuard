@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ops_guard"
+version = "0.1.0"
+description = "ops_guard CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+ops_guard = "ops_guard.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+

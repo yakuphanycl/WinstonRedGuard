@@ -1,0 +1,8 @@
+[project]
+name = "text_cleaner"
+version = "0.1.0"
+description = "text_cleaner CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+text_cleaner = "text_cleaner.cli:main"

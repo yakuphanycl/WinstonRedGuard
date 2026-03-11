@@ -1,0 +1,8 @@
+[project]
+name = "log_analyzer"
+version = "0.1.0"
+description = "log_analyzer CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+log_analyzer = "log_analyzer.cli:main"

@@ -1,0 +1,8 @@
+[project]
+name = "line_counter"
+version = "0.1.0"
+description = "line_counter CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+line_counter = "line_counter.cli:main"

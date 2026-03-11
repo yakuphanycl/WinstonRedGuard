@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "refinery"
+version = "0.1.0"
+description = "WRG app productization inspector and refinement tracker"
+requires-python = ">=3.10"
+
+[project.scripts]
+refinery = "refinery.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

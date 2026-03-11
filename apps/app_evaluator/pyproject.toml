@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "app_evaluator"
+version = "0.1.0"
+description = "WinstonRedGuard application evaluator"
+requires-python = ">=3.10"
+
+[project.scripts]
+app_evaluator = "app_evaluator.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

@@ -1,0 +1,8 @@
+[project]
+name = "file_watcher"
+version = "0.1.0"
+description = "file_watcher CLI tool"
+requires-python = ">=3.10"
+
+[project.scripts]
+file_watcher = "file_watcher.cli:main"

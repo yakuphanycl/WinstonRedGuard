@@ -1,0 +1,2 @@
+"""{{tool_name}} package."""
+

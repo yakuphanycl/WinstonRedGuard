@@ -1,0 +1,82 @@
+{
+  "name": "wrg_dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "description": "WRG Dashboard desktop control center",
+  "author": "WinstonRedGuard",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:renderer": "vite",
+    "dev:desktop": "concurrently -k \"npm run dev:renderer\" \"wait-on tcp:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron ./electron/main.cjs\"",
+    "desktop": "electron ./electron/main.cjs",
+    "build": "tsc -b && vite build",
+    "build:renderer": "npm run build",
+    "validate": "npm run test && npm run build:renderer",
+    "clean:desktop": "node -e \"const fs=require('node:fs'); try { if (!fs.existsSync('out')) { console.log('[clean:desktop] out directory not present.'); } else { fs.rmSync('out',{recursive:true,force:true}); console.log('[clean:desktop] removed out directory.'); } } catch (err) { const msg = err && typeof err==='object' && 'message' in err ? err.message : String(err); console.warn('[clean:desktop] could not remove out directory; continuing anyway. reason=' + msg); }\"",
+    "diagnose:desktop": "node -e \"const p=require('node:path'); const local=process.env.LOCALAPPDATA||'unknown'; const cache=p.join(local,'electron-builder','Cache','winCodeSign'); console.log('[diagnose:desktop] lane=diagnosis only'); console.log('renderer_build_lane=independent'); console.log('desktop_packaging_lane=environment-sensitive'); console.log('winCodeSign_cache='+cache); console.log('if packaging fails with symbolic link privilege error, check Developer Mode / elevated shell / enterprise policy / antivirus constraints.');\"",
+    "prepack:desktop": "node -e \"console.log('[pack:desktop] lane=desktop-packaging mode=honest-fail; if electron-builder fails, packaging is NOT successful.')\"",
+    "pack:desktop": "npm run clean:desktop && npm run build:renderer && electron-builder --dir",
+    "package:desktop": "npm run pack:desktop",
+    "predist:desktop": "node -e \"console.log('[dist:desktop] lane=desktop-distributable mode=honest-fail; environment/tooling failures are surfaced as non-zero exit.')\"",
+    "dist:desktop": "npm run clean:desktop && npm run build:renderer && electron-builder --win nsis",
+    "build:desktop": "npm run pack:desktop",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "@testing-library/react": "^16.3.0",
+    "jsdom": "^24.1.1",
+    "concurrently": "^9.0.1",
+    "cross-env": "^7.0.3",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2",
+    "vitest": "^2.1.4"
+  },
+  "build": {
+    "appId": "com.winstonredguard.controlcenter",
+    "productName": "WRG Control Center",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "out"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WRG Control Center",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

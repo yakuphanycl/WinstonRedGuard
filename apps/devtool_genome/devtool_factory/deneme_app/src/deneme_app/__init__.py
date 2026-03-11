@@ -1,0 +1,2 @@
+"""deneme_app package."""
+

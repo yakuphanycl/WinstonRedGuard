@@ -1,0 +1,8 @@
+[project]
+name = "{{tool_name}}"
+version = "0.1.0"
+description = "{{description}}"
+requires-python = ">=3.10"
+
+[project.scripts]
+{{tool_name}} = "{{tool_name}}.cli:main"
