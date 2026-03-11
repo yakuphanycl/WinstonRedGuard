@@ -64,6 +64,15 @@ function RC-Abs([string]$p){
   return (Resolve-Path -LiteralPath $p).Path
 }
 
+function RC-ReadJsonOrNull([string]$path){
+  if(-not (Test-Path -LiteralPath $path -PathType Leaf)){ return $null }
+  try {
+    return (Get-Content -LiteralPath $path -Raw | ConvertFrom-Json -Depth 64)
+  } catch {
+    return $null
+  }
+}
+
 if($Help -or ((-not $All) -and [string]::IsNullOrWhiteSpace($App))){
 @"
 Usage:
@@ -109,6 +118,26 @@ if(@($apps).Count -le 0){
   RC-Die "No apps found under apps/ (or filtered by SKIP_APPS)." 2
 }
 
+$registryPath = Join-Path $repoRoot "apps\app_registry\data\registry.json"
+$registryObj = RC-ReadJsonOrNull $registryPath
+$appTypeByName = @{}
+$registryApps = @()
+if($null -ne $registryObj){
+  if(($registryObj.PSObject.Properties.Name -contains "apps") -and ($null -ne $registryObj.apps)){
+    $registryApps = @($registryObj.apps)
+  } else {
+    $registryApps = @($registryObj)
+  }
+}
+foreach($entry in $registryApps){
+  if($null -eq $entry){ continue }
+  $entryName = [string]$entry.name
+  if([string]::IsNullOrWhiteSpace($entryName)){ continue }
+  $entryType = [string]$entry.app_type
+  if([string]::IsNullOrWhiteSpace($entryType)){ $entryType = "python_app" }
+  $appTypeByName[$entryName.ToLowerInvariant()] = $entryType
+}
+
 foreach($appName in $apps){
   $appRoot = Join-Path $appsRoot $appName
   if(-not (Test-Path -LiteralPath $appRoot -PathType Container)){
@@ -117,9 +146,22 @@ foreach($appName in $apps){
 
   RC-Info "==> $appName"
 
+  $appType = "python_app"
+  $appKey = $appName.ToLowerInvariant()
+  if($appTypeByName.ContainsKey($appKey)){
+    $candidateType = [string]$appTypeByName[$appKey]
+    if(-not [string]::IsNullOrWhiteSpace($candidateType)){
+      $appType = $candidateType
+    }
+  }
+  if($appType.ToLowerInvariant() -eq "node_app"){
+    RC-Info ("Skipping Python wheel build for node app: {0}" -f $appName)
+    continue
+  }
+
   $pyproject = Join-Path $appRoot "pyproject.toml"
   if(-not (Test-Path -LiteralPath $pyproject)){
-    RC-Die ("Missing pyproject.toml in {0}" -f $appRoot) 2
+    RC-Die ("Missing pyproject.toml for python app in {0}" -f $appRoot) 2
   }
 
   Push-Location $appRoot
@@ -188,6 +230,192 @@ foreach($appName in $apps){
   } finally {
     Pop-Location
   }
+}
+
+# Global gate: combined pytest for app_registry + governance_check
+$registryTests = Join-Path $repoRoot "apps\app_registry\tests"
+$governanceTests = Join-Path $repoRoot "apps\governance_check\tests"
+$combinedPytestTargets = @()
+$missingCombinedTargets = @()
+if(Test-Path -LiteralPath $registryTests -PathType Container){
+  $combinedPytestTargets += (RC-Abs $registryTests)
+} else {
+  $missingCombinedTargets += "apps/app_registry/tests"
+}
+if(Test-Path -LiteralPath $governanceTests -PathType Container){
+  $combinedPytestTargets += (RC-Abs $governanceTests)
+} else {
+  $missingCombinedTargets += "apps/governance_check/tests"
+}
+if($combinedPytestTargets.Count -gt 0){
+  if($combinedPytestTargets.Count -eq 2){
+    RC-Info "==> global quality gate: combined pytest (app_registry + governance_check)"
+  } else {
+    RC-Warn ("Combined pytest partial target mode; missing: {0}" -f ($missingCombinedTargets -join ", "))
+    RC-Info ("==> global quality gate: combined pytest (existing target: {0})" -f $combinedPytestTargets[0])
+  }
+  RC-RunDirect "ensure pytest (global)" (@($python) + $pyVerArg + @("-m","pip","install","-q","pytest")) @(0)
+  RC-RunDirect "pytest combined" ((@($python) + $pyVerArg + @("-m","pytest","-q")) + $combinedPytestTargets) @(0)
+} else {
+  RC-Warn ("Combined pytest target dirs missing; skipping app_registry+governance_check combined run. Missing: {0}" -f ($missingCombinedTargets -join ", "))
+}
+
+# Global gate: governance policy check
+$governanceSrc = Join-Path $repoRoot "apps\governance_check\src"
+$governanceCli = Join-Path $governanceSrc "governance_check\cli.py"
+$governanceRc = 0
+$policyPath = Join-Path $repoRoot "artifacts\policy_check.json"
+$governancePath = Join-Path $repoRoot "artifacts\governance_check.json"
+if(Test-Path -LiteralPath $governanceCli -PathType Leaf){
+  $artifactsDir = Join-Path $repoRoot "artifacts"
+  if(-not (Test-Path -LiteralPath $artifactsDir -PathType Container)){
+    New-Item -ItemType Directory -Force -Path $artifactsDir | Out-Null
+  }
+  RC-Info ("==> global governance gate: {0}" -f $governancePath)
+  $oldPyPath = $env:PYTHONPATH
+  try {
+    if([string]::IsNullOrWhiteSpace($oldPyPath)){
+      $env:PYTHONPATH = $governanceSrc
+    } else {
+      $env:PYTHONPATH = "{0};{1}" -f $governanceSrc, $oldPyPath
+    }
+    Push-Location $repoRoot
+    try {
+      if($VerboseLog){ RC-Info ("==> governance check`n    {0}" -f ((@($python) + $pyVerArg + @("-m","governance_check.cli","check","--json-out",$governancePath)) -join " ")) }
+      & $python @pyVerArg "-m" "governance_check.cli" "check" "--json-out" $governancePath
+      $governanceRc = $LASTEXITCODE
+      if($governanceRc -ne 0){
+        RC-Warn ("governance check reported non-zero rc={0}" -f $governanceRc)
+      }
+    } finally {
+      Pop-Location
+    }
+  } finally {
+    if($null -eq $oldPyPath){
+      Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    } else {
+      $env:PYTHONPATH = $oldPyPath
+    }
+  }
+} else {
+  RC-Warn "governance_check CLI not found; skipping governance gate."
+}
+
+# Aggregate health artifacts into company_health.json
+$artifactsDir = Join-Path $repoRoot "artifacts"
+if(-not (Test-Path -LiteralPath $artifactsDir -PathType Container)){
+  New-Item -ItemType Directory -Force -Path $artifactsDir | Out-Null
+}
+$companyHealthPath = Join-Path $artifactsDir "company_health.json"
+$policyObj = RC-ReadJsonOrNull $policyPath
+$governanceObj = RC-ReadJsonOrNull $governancePath
+
+$policyPresent = $null -ne $policyObj
+$governancePresent = $null -ne $governanceObj
+
+$policyOverall = $null
+$policyChecksFailed = 0
+$policyWarnings = 0
+$policySummary = $null
+if($policyPresent){
+  $policyOverall = $policyObj.overall
+  if($policyObj.PSObject.Properties.Name -contains "checks_failed"){
+    $policyChecksFailed = [int]$policyObj.checks_failed
+  } elseif(($policyObj.PSObject.Properties.Name -contains "summary") -and ($null -ne $policyObj.summary)){
+    if($policyObj.summary.PSObject.Properties.Name -contains "failed"){ $policyChecksFailed = [int]$policyObj.summary.failed }
+    elseif($policyObj.summary.PSObject.Properties.Name -contains "error"){ $policyChecksFailed = [int]$policyObj.summary.error }
+  }
+  if(($policyObj.PSObject.Properties.Name -contains "summary") -and ($null -ne $policyObj.summary)){
+    if($policyObj.summary.PSObject.Properties.Name -contains "warning"){ $policyWarnings = [int]$policyObj.summary.warning }
+    elseif($policyObj.summary.PSObject.Properties.Name -contains "warnings"){ $policyWarnings = [int]$policyObj.summary.warnings }
+  }
+  if($policyObj.PSObject.Properties.Name -contains "summary"){ $policySummary = $policyObj.summary }
+}
+
+$governanceOverall = $null
+$governanceErrors = 0
+$governanceWarnings = 0
+$governanceSummary = $null
+if($governancePresent){
+  $governanceOverall = $governanceObj.overall
+  if($governanceObj.PSObject.Properties.Name -contains "error"){ $governanceErrors = [int]$governanceObj.error }
+  elseif(($governanceObj.PSObject.Properties.Name -contains "summary") -and ($governanceObj.summary.PSObject.Properties.Name -contains "error")){ $governanceErrors = [int]$governanceObj.summary.error }
+  if($governanceObj.PSObject.Properties.Name -contains "warning"){ $governanceWarnings = [int]$governanceObj.warning }
+  elseif(($governanceObj.PSObject.Properties.Name -contains "summary") -and ($governanceObj.summary.PSObject.Properties.Name -contains "warning")){ $governanceWarnings = [int]$governanceObj.summary.warning }
+  if($governanceObj.PSObject.Properties.Name -contains "summary"){
+    $governanceSummary = $governanceObj.summary
+  } else {
+    $governanceSummary = @{
+      total = $governanceObj.total
+      ok = $governanceObj.ok
+      warning = $governanceObj.warning
+      error = $governanceObj.error
+    }
+  }
+}
+
+$totalErrors = [int]($policyChecksFailed + $governanceErrors)
+$totalWarnings = [int]($policyWarnings + $governanceWarnings)
+$hasFailSource = $false
+if($policyPresent -and $null -ne $policyOverall){
+  $p = [string]$policyOverall
+  if(($p.ToUpperInvariant() -eq "FAIL") -or ($p.ToUpperInvariant() -eq "ERROR")){ $hasFailSource = $true }
+}
+if($governancePresent -and $null -ne $governanceOverall){
+  $g = [string]$governanceOverall
+  if(($g.ToUpperInvariant() -eq "FAIL") -or ($g.ToUpperInvariant() -eq "ERROR")){ $hasFailSource = $true }
+}
+if($totalErrors -gt 0){ $hasFailSource = $true }
+
+$overall = "PASS"
+if($hasFailSource){
+  $overall = "FAIL"
+} elseif($totalWarnings -gt 0){
+  $overall = "WARN"
+}
+
+$highlights = @()
+if(-not $policyPresent){ $highlights += "policy_check artifact missing" }
+if(-not $governancePresent){ $highlights += "governance_check artifact missing" }
+if($policyPresent -and ($policyChecksFailed -gt 0)){ $highlights += ("policy_check reports {0} failed checks" -f $policyChecksFailed) }
+if($governancePresent -and ($governanceErrors -gt 0)){ $highlights += ("governance_check reports {0} errors" -f $governanceErrors) }
+if($governancePresent -and ($governanceWarnings -gt 0)){ $highlights += ("governance_check reports {0} warnings" -f $governanceWarnings) }
+if(($highlights.Count -eq 0) -and $policyPresent -and $governancePresent){
+  $highlights += "all sources passed without errors"
+}
+
+$companyHealth = [ordered]@{
+  generated_at = [DateTime]::UtcNow.ToString("o")
+  overall = $overall
+  sources = [ordered]@{
+    policy_check = [ordered]@{
+      present = $policyPresent
+      path = "artifacts/policy_check.json"
+      overall = $policyOverall
+      checks_failed = $policyChecksFailed
+      summary = $policySummary
+    }
+    governance_check = [ordered]@{
+      present = $governancePresent
+      path = "artifacts/governance_check.json"
+      overall = $governanceOverall
+      error_count = $governanceErrors
+      warning_count = $governanceWarnings
+      summary = $governanceSummary
+    }
+  }
+  totals = [ordered]@{
+    errors = $totalErrors
+    warnings = $totalWarnings
+  }
+  highlights = @($highlights)
+}
+$companyHealthJson = $companyHealth | ConvertTo-Json -Depth 16
+[System.IO.File]::WriteAllText($companyHealthPath, $companyHealthJson, [System.Text.UTF8Encoding]::new($false))
+RC-Info ("company health artifact written: {0}" -f $companyHealthPath)
+
+if($governanceRc -ne 0){
+  RC-Die ("governance gate failed (rc={0})" -f $governanceRc) $governanceRc
 }
 
 RC-Info "OK"

@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "governance_check"
+version = "0.1.0"
+description = "Deterministic WRG governance and worker compliance checker"
+requires-python = ">=3.10"
+
+[project.scripts]
+governance_check = "governance_check.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

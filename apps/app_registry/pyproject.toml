@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "app_registry"
+version = "0.1.0"
+description = "WinstonRedGuard application registry"
+requires-python = ">=3.10"
+
+[project.scripts]
+app_registry = "app_registry.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
