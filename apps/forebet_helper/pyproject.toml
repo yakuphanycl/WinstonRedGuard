@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forebet-helper"
+version = "0.1.0"
+description = "Personal-use Forebet signal helper for match pages"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "OpenAI ChatGPT" }
+]
+dependencies = [
+  "beautifulsoup4>=4.12",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+forebet-helper = "forebet_helper.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
