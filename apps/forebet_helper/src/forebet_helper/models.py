@@ -6,6 +6,8 @@ from typing import Literal
 
 
 Confidence = Literal["low", "medium", "high"]
+EdgeStrength = Literal["weak", "medium", "strong"]
+MatchProfile = Literal["balanced", "home_lean", "away_lean"]
 
 
 @dataclass
@@ -29,6 +31,10 @@ class MatchSignal:
     parser_version: str
     fetched_at: datetime
     missing_fields: list[str] = field(default_factory=list)
+    edge_strength: EdgeStrength | None = None
+    match_profile: MatchProfile | None = None
+    signal_summary: str | None = None
+    risk_note: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
