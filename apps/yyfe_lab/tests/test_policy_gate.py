@@ -1,28 +1,49 @@
 import json
 import subprocess
+import sys
 from pathlib import Path
 
+
+APP_DIR = Path(__file__).resolve().parents[1]
+POLICY_PATH = APP_DIR / "policy.json"
+OUTPUT_DIR = APP_DIR / "output"
+
+
 def run_yyfe(*args: str) -> tuple[int, str]:
-    exe = Path(".venv/Scripts/yyfe.exe")
-    cp = subprocess.run([str(exe), *args], capture_output=True, text=True)
+    cp = subprocess.run(
+        [sys.executable, "-m", "yyfe", "--policy", str(POLICY_PATH), *args],
+        capture_output=True,
+        text=True,
+        cwd=str(APP_DIR),
+    )
     out = (cp.stdout or "") + (cp.stderr or "")
     return cp.returncode, out
 
+
 def test_validate_blocks_non_allowlisted_script():
+    assert POLICY_PATH.exists(), f"missing policy file: {POLICY_PATH}"
+
     # generate fresh plan
     rc, out = run_yyfe("plan", "--profile", "lab")
     assert rc == 0, out
 
-    plan = json.loads(Path("output/plan.json").read_text(encoding="utf-8"))
+    plan_file = OUTPUT_DIR / "plan.json"
+    assert plan_file.exists(), f"missing plan file: {plan_file}"
+
+    plan = json.loads(plan_file.read_text(encoding="utf-8"))
     assert isinstance(plan.get("actions"), list) and plan["actions"]
 
     # force a blocked cmd
     plan["actions"][0]["cmd"] = [
-        "powershell","-NoProfile","-ExecutionPolicy","Bypass","-File",
-        r"C:\Windows\Temp\nope.ps1"
+        "powershell",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        r"C:\Windows\Temp\nope.ps1",
     ]
 
-    bad = Path("output/plan_bad_test.json")
+    bad = OUTPUT_DIR / "plan_bad_test.json"
     bad.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
 
     rc, out = run_yyfe("validate", "--plan", str(bad))
